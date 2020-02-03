@@ -8,14 +8,23 @@
  ============================================================================
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <time.h>
+
+#include "openssl/crypto.h"
+#include "openssl/x509.h"
+#include "openssl/pem.h"
 #include "openssl/ssl.h"
+#include "openssl/err.h"
 
 #define MAX_BUFF 1024
 
@@ -26,8 +35,8 @@ void openssl_init(void){
 }
 
 int main(int argc, char *argv[]) {
-	char server_address[] = argv[1];//chinh la hostname trong sach
-	char port[] = argv[2];
+	const char *server_address = argv[1];//chinh la hostname trong sach
+	const char *port = argv[2];
 	struct sockaddr_in serv_addr;
 	struct addrinfo hints;
 	struct addrinfo *peer_address;
@@ -56,15 +65,16 @@ int main(int argc, char *argv[]) {
 	}
 
 	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(PORT);
+	serv_addr.sin_port = htons(atoi(port));
 
 	if(inet_pton(AF_INET, server_address, &serv_addr.sin_addr) < 0){ // chuyen doi chuoi server_address thanh dia chi ip
 		printf("\n Invalid address\n");
 		return -1;
 	}
 
-	if(connect(sock, (struct sockaddr *)&serv_addr), sizeof(serv_addr)){
+	if(connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0 ){
 		printf("\n Connection Failed\n");
+		return 1;
 	}
 	//3. Sau khi TCP connection duoc tao ra thanh cong, tien hanh khoi tao mot TLS connection
 	SSL *ssl = SSL_new(ctx);
