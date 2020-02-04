@@ -24,11 +24,6 @@
 #include <unistd.h>
 #include <errno.h>
 
-#define ISVALIDSOCKET(s) ((s) >= 0)
-#define CLOSESOCKET(s) close(s)
-#define SOCKET int
-#define GETSOCKETERRNO() (errno)
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -51,18 +46,9 @@ void openssl_init(void){
 }
 
 int main(int argc, char *argv[]) {
-#if defined(_WIN32)
-    WSADATA d;
-    if (WSAStartup(MAKEWORD(2, 2), &d)) {
-        fprintf(stderr, "Failed to initialize.\n");
-        return 1;
-    }
-#endif
-
-    SSL_library_init();
-    OpenSSL_add_all_algorithms();
-    SSL_load_error_strings();
-
+	//khoi tao the OpenSSL library
+    openssl_init();
+    // Tao mot OpenSSL context
     SSL_CTX *ctx = SSL_CTX_new(TLS_client_method());
     if (!ctx) {
         fprintf(stderr, "SSL_CTX_new() failed.\n");
@@ -77,7 +63,7 @@ int main(int argc, char *argv[]) {
     char *hostname = argv[1];
     char *port = argv[2];
 
-
+    /***********************Tạo một client TCP socket***************************/
     printf("Configuring remote address...\n");
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
@@ -136,20 +122,24 @@ int main(int argc, char *argv[]) {
     freeaddrinfo(peer_address);
 
     printf("Connected.\n\n");
-
-
+    /******************************************************************/
+    /* Nếu như không cần phải mã hóa, chúng ta có thể giao tiếp thông qua socket vừa tạo ra.
+     * Tuy nhiên chúng ta sẽ dùng OpenSSL để khởi tạo một TLS/SSL connection thông qua TCP connections.
+     * */
+    //Tạo một SSL object từ ctx SSL context
     SSL *ssl = SSL_new(ctx);
     if (!ctx) {
         fprintf(stderr, "SSL_new() failed.\n");
         return 1;
     }
-
+    // (Optional==>This allows OpenSSL to use SNI) giúp cho server biết được certificates của connection hiện tại
     if (!SSL_set_tlsext_host_name(ssl, hostname)) {
         fprintf(stderr, "SSL_set_tlsext_host_name() failed.\n");
         ERR_print_errors_fp(stderr);
         return 1;
     }
 
+    // Hai hàm dưới dùng để khởi tạo new TLS/SSL connection trên TCP socket vừa tạo.
     SSL_set_fd(ssl, server);
     if (SSL_connect(ssl) == -1) {
         fprintf(stderr, "SSL_connect() failed.\n");
