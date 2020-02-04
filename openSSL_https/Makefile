@@ -1,9 +1,15 @@
+platform=PC
 target=https_client
 src=$(wildcard ./src/*.c)
 obj=$(src:*.c=*.o)
 
 CFLAGS=-Wall -g -I. -I./src/include
-LDFLAGS=-L./lib -lcrypto -lssl
+ifeq ( $(platform), GM )
+	LDFLAGS=-L./lib -lssl -lcrypto -lpthread
+else
+	LDFLAGS=-L./lib_PC -lssl -lcrypto -ldl -lpthread
+endif
+
 
 .PHONY: all clean $(target)
 $(target):$(obj)
