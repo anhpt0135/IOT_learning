@@ -280,8 +280,8 @@ static void init_psk(char *psk, size_t len, int mode)
 	printf("inside init_psk()\n");
     char sPSK[64] = {0};
     char sIdentity[64] = {0};
-    char response_pskidentity[128] ="saurjal0kkcsoduk864r68nv4m";
-    char response_pdkkey[128] = "0C14CB721D6F02D7906AFD641D5BD489";
+    char response_pskidentity[128] ="faeqv3q53vmgihp35aatirjjmr";
+    char response_pdkkey[128] = "25B8B1234412461F15F6E561F55E346C";
 
     if(psk == NULL)
     {
@@ -338,6 +338,7 @@ int main(int argc, char *argv[]) {
     memset(&hints, 0, sizeof(hints));
     hints.ai_socktype = SOCK_STREAM;
     struct addrinfo *peer_address;
+    unsigned char socket_data_size[32] = {0};
     if (getaddrinfo(hostname, port, &hints, &peer_address)) {
         fprintf(stderr, "getaddrinfo() failed. (%d)\n", GETSOCKETERRNO());
         exit(1);
@@ -371,31 +372,38 @@ int main(int argc, char *argv[]) {
 
     printf("Connected.\n");
 
-    char buffer[MAX_LENGTH_DATA]={0};
+    char buffer[]="action=command&command=get_udid";
     unsigned char encrypt_buffer[MAX_LENGTH_DATA] = {0};
     unsigned char decrypt_buffer[MAX_LENGTH_DATA] = {0};
     int encrypt_size;
+    char sizebuf[4]={0};
 
-    sprintf(buffer, "GET /?action=command&command=get_udid HTTP/1.1\r\n");
+    /*sprintf(buffer, "GET /?action=command&command=get_udid HTTP/1.1\r\n");
     sprintf(buffer + strlen(buffer), "Host: %s:%s\r\n", hostname, port);
-    //sprintf(buffer + strlen(buffer), "Connection: close\r\n");
+    sprintf(buffer + strlen(buffer), "Connection: close\r\n");
     sprintf(buffer + strlen(buffer), "User-Agent: https_simple\r\n");
-    sprintf(buffer + strlen(buffer), "\r\n");
+    sprintf(buffer + strlen(buffer), "\r\n");*/
 
+    //sprintf(buffer, "action=command&command=get_udid");
     printf("before encrypt !.....");
     encrypt_aes128((char *)hex_sha512_key, IV, (unsigned char*)buffer, encrypt_buffer, &encrypt_size);
     printf("encrypt buffer = %s\n", encrypt_buffer);
-    decrypt_aes128((char *)hex_sha512_key, IV, encrypt_buffer, decrypt_buffer);
-    printf("decrypt the encrypt buffer : %s\n", decrypt_buffer);
-    memset(decrypt_buffer, 0, sizeof(decrypt_buffer));
-    printf("encrypt done!.....");
-    //decrypt_aes128((char *)hex_sha512_key, IV, encrypt_buffer, decrypt_buffer);
-    //SSL_write(ssl, buffer, strlen(buffer));
-    int bytes_sent = send(server, buffer, strlen(buffer), 0);
+    printf("encrypt done!.....\n\n");
+
+
+    //send the data length to the server first
+    sprintf(sizebuf, "%d\n", encrypt_size);
+    send(server, sizebuf, sizeof(sizebuf), 0);
+    // Then,send the encrypted buffer
+
+    int bytes_sent = send(server, encrypt_buffer, encrypt_size, 0);
     printf("Sent %d bytes.\n", bytes_sent);
-
-    printf("Sent Headers:\n%s", buffer);
-
+    //decrypt_aes128((char *)hex_sha512_key, IV, (unsigned char*)encrypt_buffer, decrypt_buffer);
+    //printf("Decrypted buffer:\n%s", decrypt_buffer);
+    //printf("Sent Headers:\n%s", buffer);
+    if((recv(server, socket_data_size, 4, 0)!=4)){
+    	fprintf(stderr, "ERROR:size receive != 4\n");
+    }
     while(1) {
         //int bytes_received = SSL_read(ssl, buffer, sizeof(buffer));
     	int bytes_received = recv(server, buffer, MAX_LENGTH_DATA, 0);
